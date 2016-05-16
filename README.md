@@ -18,7 +18,7 @@ Current Functionality:
 
 Error Handling = FUNCTIONAL
 Proper Variable Handling: FUNCTIONAL
-PEMDAS presedence: NOT FUNCTIONAL
+PEMDAS presedence: FUNCTIONAL
 Trig optimization: NOT FUNCTIONAL
 Computation handling = FUNCTIONAL
 Graphing = NOT FUNCTIONAL
