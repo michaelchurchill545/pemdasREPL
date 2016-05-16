@@ -10,7 +10,7 @@ public class Tester {
     public static void main(String[] args) {
 
 
-        String computeTest1 = "var a =5; var b = 3 + a; var c = a; return a ^( b + (c/12));";
+        String computeTest1 = "var a =5; var b = 3 + a; var c = a; return a ^ b + 3/12;";
         System.out.println("**********TESTING: "+ computeTest1);
 
                 //"return (17*5)+201;";

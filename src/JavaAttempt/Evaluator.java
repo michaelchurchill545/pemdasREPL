@@ -119,6 +119,17 @@ public class Evaluator {
 
         System.out.print(value1 + operator.getToken().getValue() + value2 + " evaluated, ");//for testing
         switch (operator.getToken().getValue()) {
+            case"sin":
+
+                break;
+
+            case "tan":
+                break;
+            case "cos":
+                break;
+            case"cot":
+                break;
+
             case "^":
                 Token valExponent = new Token("NUMBER", String.valueOf(Math.pow(value1, value2)), true);
                 System.out.println(valExponent.getValue() + " Returned");
