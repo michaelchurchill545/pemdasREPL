@@ -9,86 +9,84 @@ import java.util.*;
  */
 public class SyntaxAnalyzer {
     private Token[] tokens;
+    private HashMap<String, Double> varMap;
+    Evaluator e;
+    List<Node> nodes;
 
     public SyntaxAnalyzer(List<Token> tokens) {
         removeWhiteSpaceTokens(tokens);
-        printTokens(tokens);
+      //  printTokens(tokens);
         this.tokens = tokens.toArray(new Token[tokens.size()]);
-        buildSyntaxTree(this.tokens); //PUT THIS BACK
+        varMap = new HashMap<>();
+        e = new Evaluator(varMap);
+        nodes = new ArrayList<>();
+
+        nodes = parseProgram(this.tokens);
+
+        for (int i = 0; i < nodes.size() - 1; i++) {
+            processVarDecl(nodes.get(i));
+         //   printTree(nodes.get(i));
+        }
+
+        Node computation = nodes.get(nodes.size() - 1);
+      //  printTree(computation);
+        e.evalToBeUsed(computation);
+
+
 
     }
 
     /**
-     * Goal 1: Assign variables
-     * Structure: 'var' leftNode '=' rightNode ';'
-     * leftNode: Identifier
-     * rightNode: ID | NUMBER | Expression
-     * <p/>
-     * <p/>
-     * Goal 2: Return mathematical computations
-     * Structure: 'return' EXPRESSION ';'
-     * <p/>
-     * EXPRESSION = lhs root rhs
-     * root: OP | ID
-     * lhs:EXPR OP EXPR | '(' EXPR ')' | NUMBER
-     * rhs:EXPR OP EXPR | '(' EXPR ')' | ID | NUMBER
-     * <p/>
-     * EXPRESSION = EXPR OP EXPR | '(' EXPR ')' | ID | NUMBER
-     * ID = EXPR | ID | NUMBER
-     */
-    public void buildSyntaxTree(Token[] t) { //change to private
-        Node root = parseGoal(t);
-        printTree(root);
-        Node computationNodes = parse_Computation(t);
-        Evaluator e = new Evaluator(computationNodes);
-
-    }
-
-    /**
-     * Creates the root node of potential varDecl or computation syntax trees, and prints out any possible exceptions that may arise during the
-     * syntax tree creation process.
+     * Processes all variables when variables point to other variables
      *
-     * @param t list of tokens to send to the varDelaration/compute methods
-     * @return an empty node if parse_varDecl has, at any point, not recognized the syntax or format of the arrangement of tokens passed in.
+     * @param n
      */
-    public Node parseGoal(Token[] t) {
-        //look for var
-        //look for semicolons
-        //keep calling vardecls until return
+    private void processVarDecl(Node n) {
 
-        Node varDecl = parse_Vardecl(t);
-        Node compute = parse_Computation(t);
+        double val = e.evalToBeUsed(n.getRightChild());
+        varMap.put(n.getLeftChild().getToken().getValue(), val);
+    }
 
-        //iterates through the token array, creates smaller arrays of VarDecls and computations, and evaluates each subarray.
-        for(int i= 0;i<t.length;i++){
-            if(t[i].getValue().equals(";")){
-              Token[] subArrayOfProgram = Arrays.copyOfRange(t, i+1, t.length);
-                Node subNode;
-                if(subArrayOfProgram[0].getValue().equals("var")){
-                    subNode = parse_Vardecl(subArrayOfProgram);
-                }else if(subArrayOfProgram[0].getValue().equals("return")){
-                    subNode = parse_Computation(subArrayOfProgram);
-                }
+    /**
+     * PROGRAM PRODUCTION: zero (or more) variable declarations, and exactly 1 computation.
+     * <p/>
+     * The syntax tree and the variable hashmap are sent to the Evaluator for complete computation.
+     */
+    private List<Node> parseProgram(Token[] t) { //change to private
+
+
+        int semicolonIndex = 0;
+        int i = 0;
+        while (t[i].getValue().equals("var")) {
+            semicolonIndex = findSemicolonIndex(t, i);
+            nodes.add(parse_Vardecl(Arrays.copyOfRange(t, i, semicolonIndex + 1)));
+
+            i = semicolonIndex + 1;
+        }
+        if (!t[i].getValue().equals("return")) {
+            throw new RuntimeException("'return' expected");
+        }
+        Node computation = parse_Computation(Arrays.copyOfRange(t, i, t.length));
+        nodes.add(computation);
+        return nodes;
+
+    }
+
+
+    /**
+     * Finds the index of the next semicolon.
+     *
+     * @param t a given list of tokens
+     * @return the index at which the semi colon is found.
+     */
+    private int findSemicolonIndex(Token[] t, int start) {
+
+        for (int i = start; i < t.length; i++) {
+            if (t[i].getValue().equals(";")) {
+                return i;
             }
         }
-
-
-
-
-        if (!varDecl.getToken().getClassification().equals("EXCEPTION")) {
-            return varDecl;
-
-        } else if (!compute.getToken().getClassification().equals("EXCEPTION")) {
-            return compute;
-        } else {
-            if (varDecl.getToken().getClassification().equals("EXCEPTION")) {
-                System.out.println("Syntax Error: " + varDecl.getToken().getValue());
-            } else if (compute.getToken().getClassification().equals("EXCEPTION")) {
-                System.out.println("Syntax Error: " + compute.getToken().getValue());
-            }
-            return null;
-        }
-
+        throw new RuntimeException("; expected");
     }
 
     /**
@@ -99,44 +97,29 @@ public class SyntaxAnalyzer {
      */
     private Node parse_Vardecl(Token[] tokens) {
 
-        Node correctAST,
-                leftNode,
-                rightNode,
-                equalsNode;
+        Node correctAST;
 
         //First check symbols
         if (tokens.length == 0 && tokens[0].getValue().equals("var")) {
-            return new Node(new Token("EXCEPTION", "'var' expected", false));
 
+            throw new RuntimeException("The Keyword 'var' is expected");
         }
 
         if (!tokens[tokens.length - 1].getValue().equals(";")) {
-            return new Node(new Token("EXCEPTION", "; expected", false));
+            throw new RuntimeException("; expected");
 
         }
 
         //Then check tokens
         if (parseLeft_VarDecl(tokens[1]) == null) {
-            return new Node(new Token("EXCEPTION", "variable expected", false));
-
-        }
-        leftNode = parseLeft_VarDecl(tokens[1]);
-
-        if (parseEquals(tokens[2]) == null) {
-            return new Node(new Token("EXCEPTION", "'=' expected", false));
+            throw new RuntimeException("A variable is expected");
         }
 
-        equalsNode = parseEquals(tokens[2]);
-
-        if (parseRight_VarDecl(tokens[3]) == null) {
-            return new Node(new Token("EXCEPTION", "Only Variables or number can be assigned to other variables", false));
+        if (!parseEquals(tokens[2])) {
+            throw new RuntimeException("= expected");
         }
-        rightNode = parseRight_VarDecl(tokens[3]);
 
-
-        correctAST = equalsNode;
-        correctAST.setLeftChild(leftNode);
-        correctAST.setRightChild(rightNode);
+        correctAST = parseExpression(Arrays.copyOfRange(tokens, 1, tokens.length - 1));
         return correctAST;
 
 
@@ -154,11 +137,12 @@ public class SyntaxAnalyzer {
 
         //checks keyword
         if (t.length == 0 || !t[0].getValue().equals("return")) {
-            return new Node(new Token("EXCEPTION", "'return' expected", false));
+            throw new RuntimeException("The Keyword 'return' is expected");
         }
 
         if (!t[t.length - 1].getValue().equals(";")) {
-            return new Node(new Token("EXCEPTION", "; expected", false));
+            throw new RuntimeException("; expected");
+
         }
 
         return parseExpression(Arrays.copyOfRange(t, 1, t.length - 1)); //excludes the keyword and semicolon, because they're proved to already be there
@@ -271,18 +255,6 @@ public class SyntaxAnalyzer {
         }
     }
 
-    private Node parseRight_VarDecl(Token t) {
-        Node rightNode = parseVariable(t);
-        if (rightNode != null) {
-            return rightNode;
-        }
-        rightNode = parseNumber(t);
-        if (rightNode != null) {
-            return rightNode;
-        } else {
-            return null;
-        }
-    }
 
     /**
      * Checks if the token is an '='
@@ -290,11 +262,11 @@ public class SyntaxAnalyzer {
      * @param t a token
      * @return null if the token does not match, returns  a new node if it does match
      */
-    private Node parseEquals(Token t) {
+    private boolean parseEquals(Token t) {
         if (parseSymbol(t) != null && t.getValue().equals("=")) {
-            return new Node(t);
+            return true;
         }
-        return null;
+        return false;
     }
 
     /**
@@ -337,13 +309,25 @@ public class SyntaxAnalyzer {
         return null;
     }
 
+
+    /**
+     * Checks if token is a symbol
+     *
+     * @param t token to check
+     * @return the token if it is a Symbol or null if not.
+     */
     private Node parseSymbol(Token t) {
-        if (t.getClassification().equals("SYMBOL")) {
+        if (t.getClassification().equals("OPERATOR")) {
             return new Node(t);
         }
         return null;
     }
 
+    /**
+     * Iterates through all tokens and removes any with the "WHITESPACE" classifications
+     *
+     * @param t the list of tokens.
+     */
     private void removeWhiteSpaceTokens(List<Token> t) {
         //List<Token> valuesToDelete = new ArrayList<>();
         for (int i = 0; i < t.size(); i++) {
@@ -360,14 +344,18 @@ public class SyntaxAnalyzer {
      * @param root the root node of the tree
      */
     private void printTree(Node root) {
-        System.out.println("Printing Syntax Tree: ");
+       // System.out.println("Printing Syntax Tree: ");
         if (root == null) return;
         Stack<Node> s = new Stack<>();
         Node current = root;
         while (true) {
             if (current != null) {
-                if (current.getRightChild() != null) s.push(current.getRightChild());
+                if (current.getRightChild() != null) {
+                    s.push(current.getRightChild());
+                    System.out.println(current.getRightChild().getToken().getValue() + " Pushed");
+                }
                 s.push(current);
+                System.out.println(current.getToken().getValue() + " Pushed");
                 current = current.getLeftChild();
                 continue;
             }
@@ -376,33 +364,26 @@ public class SyntaxAnalyzer {
                 return;
             }
             current = s.pop();
+            System.out.println(current.getToken().getValue() + " Popped");
             if (current.getRightChild() != null && !s.isEmpty() && current.getRightChild() == s.peek()) {
                 s.pop();
+                System.out.println(current.getToken().getValue() + " Popped");
                 s.push(current);
+                System.out.println(current.getToken().getValue() + " Pushed");
                 current = current.getRightChild();
             } else {
-                System.out.print(current.getToken().getValue() + " ");
+                System.out.println(current.getToken().getValue() + " Value Before change");
                 current = null;
             }
         }
 
     }
 
-    /**
-     * Takes a tree of variable declarations, iterates through in post-order fashion and creates a complex hashmap of tokens
-     * @param root the root node of a tree of var decls.
-     * @return a hashmap that maps variables to other variables or variables to numbers.
-     */
-    private HashMap<Token, Token> treeToMap(Node root){
-        HashMap<Token, Token> map = new HashMap<>();//Key = Variable, Value = Variable/Number
 
-
-        return map;
-    }
     public static void printTokens(List<Token> tokens) {
         System.out.println("Tokens without whitespace: ");
-        for (Token token : tokens) {
-            System.out.println("Index: " + tokens.indexOf(token) + ", Classification: " + token.getClassification() + ", Value: " + token.getValue());
-        }
+//        for (Token token : tokens) {
+//            System.out.println("Index: " + tokens.indexOf(token) + ", Classification: " + token.getClassification() + ", Value: " + token.getValue());
+//        }
     }
 }

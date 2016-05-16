@@ -10,8 +10,10 @@ public class Tester {
     public static void main(String[] args) {
 
 
-        System.out.println("**********TESTING: COMPUTATIONS**********");
-        String computeTest1 = "return (17*5)+201;";
+        String computeTest1 = "var a =5; var b = 3 + a; var c = a; return a ^( b + (c/12));";
+        System.out.println("**********TESTING: "+ computeTest1);
+
+                //"return (17*5)+201;";
 
         FiniteStateMachine fsm = new FiniteStateMachine(computeTest1);
 
